@@ -1,7 +1,5 @@
 use crate::*;
 
-use self::serialization::TransferGame;
-
 #[derive(Debug, Clone)]
 pub struct Game {
     /// Les cartes cara cap avall
@@ -24,11 +22,8 @@ impl Game {
         let mut b_cards = vec![];
 
         for coll in [Coll::Copes, Coll::Espases, Coll::Garrots, Coll::Monedes] {
-            for n in Numero::ALL {
-                uncovered.push(Carta {
-                    coll,
-                    valor: Numero::try_from(dbg!(n)).unwrap(),
-                })
+            for valor in Numero::ALL {
+                uncovered.push(Carta { coll, valor })
             }
         }
 
@@ -59,5 +54,10 @@ impl Game {
 
     pub fn is_over(&self) -> bool {
         todo!()
+    }
+}
+impl Default for Game {
+    fn default() -> Self {
+        Self::new()
     }
 }

@@ -52,6 +52,9 @@ impl ClientStatement {
             return None;
         }
         let tag = b[0];
+        if tag != RESPONSE_TAG {
+            return None;
+        }
 
         Carta::deserialize(&b[1..]).map(|c| ClientStatement { played_card: c })
     }
@@ -60,10 +63,10 @@ impl ClientStatement {
 impl Coll {
     fn serialize(&self) -> [u8; 1] {
         match self {
-            Coll::Monedes => *b"m",
-            Coll::Copes => *b"c",
-            Coll::Espases => *b"e",
-            Coll::Garrots => *b"g",
+            Coll::Monedes => [b'm'],
+            Coll::Copes => [b'c'],
+            Coll::Espases => [b'e'],
+            Coll::Garrots => [b'g'],
         }
     }
     fn deserialize(b: &[u8]) -> Option<Self> {
@@ -91,7 +94,7 @@ impl Numero {
         if *b >= 10 {
             None
         } else {
-            unsafe { mem::transmute(*b) }
+            unsafe { Some(mem::transmute::<u8, Numero>(*b)) }
         }
     }
 }
@@ -107,8 +110,7 @@ impl Carta {
         let [c_b, v_b] = b else {
             return None;
         };
-        Coll::deserialize(&[*c_b]).and_then(|c| {
-            Numero::deserialize(&[*v_b]).and_then(|v| Some(Carta { coll: c, valor: v }))
-        })
+        Coll::deserialize(&[*c_b])
+            .and_then(|c| Numero::deserialize(&[*v_b]).map(|v| Carta { coll: c, valor: v }))
     }
 }

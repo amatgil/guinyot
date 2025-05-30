@@ -1,8 +1,5 @@
 use guinyot::*;
-use std::{
-    io::{Read, Write},
-    net::TcpStream,
-};
+use std::{io::Read, net::TcpStream};
 
 fn main() -> std::io::Result<()> {
     let mut stream = TcpStream::connect(format!("127.0.0.1:{DEFAULT_PORT}"))?;
