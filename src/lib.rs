@@ -24,13 +24,13 @@ pub const CHECK_TAGS_ARE_DIFFERENT: () = {
     }
 };
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Carta {
     pub coll: Coll,
     pub valor: Numero,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
 pub enum Coll {
     Monedes,
@@ -39,7 +39,7 @@ pub enum Coll {
     Garrots,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
 pub enum Numero {
     As,

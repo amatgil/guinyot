@@ -8,11 +8,18 @@ pub struct Game {
     /// A qui li toca
     pub torn: Torn,
 
-    /// Cartes de A
-    pub a_cards: Vec<Carta>,
+    pub a_hand: Vec<Carta>,
+    pub b_hand: Vec<Carta>,
 
-    /// Cartes de B
-    pub b_cards: Vec<Carta>,
+    pub a_won_cards: Vec<Carta>,
+    pub b_won_cards: Vec<Carta>,
+
+    pub atot: Coll,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum GameError {
+    PlayerDoesNotHaveCard,
 }
 
 impl Game {
@@ -40,10 +47,13 @@ impl Game {
 
         assert_eq!(uncovered.len(), 40 - 2 * 3);
         Game {
+            atot: uncovered.first().unwrap().coll,
             uncovered,
             torn: Torn::A,
-            a_cards,
-            b_cards,
+            a_hand: a_cards,
+            b_hand: b_cards,
+            a_won_cards: vec![],
+            b_won_cards: vec![],
         }
     }
 
@@ -53,9 +63,25 @@ impl Game {
     }
 
     pub fn is_over(&self) -> bool {
-        todo!()
+        dbg!(false) // TODO: implement
+    }
+
+    pub fn play_cards(&mut self, first: Carta, second: Carta) {
+        let first_won = first_wins_basa(first, second, self.atot);
+        match (self.torn, first_won) {
+            (Torn::A, true) | (Torn::B, false) => {
+                self.a_hand.push(first);
+                self.a_hand.push(second);
+            }
+            (Torn::A, false) | (Torn::B, true) => todo!(),
+        }
     }
 }
+
+fn first_wins_basa(first: Carta, second: Carta, atot: Coll) -> bool {
+    dbg!(true) // TODO: implement
+}
+
 impl Default for Game {
     fn default() -> Self {
         Self::new()

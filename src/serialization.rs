@@ -17,7 +17,7 @@ pub struct TransferGame {
 /// Client -> Server
 #[derive(Debug, Clone)]
 pub struct ClientStatement {
-    played_card: Carta,
+    pub played_card: Carta,
 }
 
 impl TransferGame {
