@@ -9,12 +9,18 @@ fn main() -> Result<(), io::Error> {
     let mut streams = listener.incoming();
 
     let mut stream_a = streams.next().expect("A failed")?;
+    stream_a.write(&[INFO_TAG])?;
     stream_a.write("Ets l'A (waiting for B)".as_bytes())?;
+    dbg!('A');
 
     let mut stream_b = streams.next().expect("B failed")?;
+    stream_b.write(&[INFO_TAG])?;
     stream_b.write("Ets el B".as_bytes())?;
+    dbg!('B');
 
+    stream_a.write(&[INFO_TAG])?;
     stream_a.write("Ets l'A (both connected)".as_bytes())?;
+    stream_b.write(&[INFO_TAG])?;
     stream_b.write("Ets el B (both connected)".as_bytes())?;
 
     let mut game = Game::new();
@@ -43,6 +49,8 @@ fn handle_turn(
 ) -> Result<(Carta, Carta), io::Error> {
     let mut buf = vec![];
 
+    second.write(&[INFO_TAG])?;
+    second.write("L'altre jugador està triant ".as_bytes())?;
     let first_answer = loop {
         let transfer_first = TransferGame {
             carta_atot: game.atot(),
@@ -51,9 +59,6 @@ fn handle_turn(
         };
         first.write(&[STATE_TAG])?;
         first.write(&transfer_first.serialize())?;
-
-        second.write(&[INFO_TAG])?;
-        second.write("L'altre jugador està triant ".as_bytes())?;
 
         let first_answer = loop {
             first.read(&mut buf)?;

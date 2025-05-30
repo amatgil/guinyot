@@ -1,14 +1,18 @@
 use guinyot::*;
-use std::{io::Read, net::TcpStream};
+use std::{io::Read, net::TcpStream, process::exit};
 
 fn main() -> std::io::Result<()> {
     let mut stream = TcpStream::connect(format!("127.0.0.1:{DEFAULT_PORT}"))?;
-    let msg = b"Haiiiii";
-    //stream.write(msg)?;
-    let mut buffer = [0; 256];
-    while stream.read(&mut buffer).is_ok() {
+
+    let mut buffer = vec![];
+    while let Ok(n) = stream.read(&mut buffer) {
+        dbg!(n);
+        //if n == 0 {
+        //    println!("Server closed, shutting down");
+        //    exit(0);
+        //}
         println!("Thing: '{}'", String::from_utf8_lossy(&buffer[..]));
-        buffer = [0; 256];
+        buffer = vec![];
     }
     Ok(())
 } // the stream closed here
