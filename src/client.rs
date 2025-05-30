@@ -1,4 +1,4 @@
-use multi_guinyot::*;
+use guinyot::*;
 use std::{
     io::{Read, Write},
     net::TcpStream,
@@ -6,8 +6,11 @@ use std::{
 
 fn main() -> std::io::Result<()> {
     let mut stream = TcpStream::connect(format!("127.0.0.1:{DEFAULT_PORT}"))?;
-    let msg = b"Hello, my name is client!";
-    stream.write(msg)?;
-    stream.read(&mut [0; 128])?;
+    let msg = b"Haiiiii";
+    //stream.write(msg)?;
+    let mut buffer = [0; 128];
+    while stream.read(&mut buffer).is_ok() {
+        println!("Request: {}", String::from_utf8_lossy(&buffer[..]));
+    }
     Ok(())
 } // the stream closed here

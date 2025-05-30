@@ -16,3 +16,4 @@ name = "server"
 path = "src/server.rs"
 
 [dependencies]
+rand = "0.9.1"
