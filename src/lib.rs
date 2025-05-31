@@ -1,14 +1,19 @@
+use std::{
+    io::{self, BufRead, BufReader, Write},
+    net::TcpStream,
+};
+
+use serialization::TransferTag;
+
 pub mod playing;
 pub mod serialization;
 
 pub const DEFAULT_PORT: u32 = 25545;
-pub const STATE_TAG: u8 = b'S';
-pub const INFO_TAG: u8 = b'I';
-pub const PROMPT_TAG: u8 = b'P';
-pub const RESPONSE_TAG: u8 = b'R';
 
-pub const CHECK_TAGS_ARE_DIFFERENT: () = {
-    let tags = [STATE_TAG, INFO_TAG, PROMPT_TAG, RESPONSE_TAG];
+#[test]
+pub fn check_tags_are_different() {
+    use TransferTag as T;
+    let tags = [T::State, T::Info, T::Prompt, T::Response];
     let mut t1 = 0;
     while t1 < tags.len() {
         let mut t2 = 0;
@@ -17,12 +22,12 @@ pub const CHECK_TAGS_ARE_DIFFERENT: () = {
                 t2 += 1;
                 continue;
             }
-            assert!(tags[t1] != tags[t2]);
+            assert!(u8::from(tags[t1]) != u8::from(tags[t2]));
             t2 += 1;
         }
         t1 += 1;
     }
-};
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Carta {
@@ -98,4 +103,28 @@ fn shuffle<T>(mut x: Vec<T>) -> Vec<T> {
     }
 
     x
+}
+
+// Communications area
+
+/// Reads until newline
+pub fn receive_from(s: &mut TcpStream) -> Result<Vec<u8>, io::Error> {
+    let mut reader = BufReader::new(s);
+
+    let mut received: Vec<u8> = vec![];
+    let _n = reader.read_until(b'\n', &mut received)?;
+    if let Some(b'\n') = received.pop() {
+        Ok(received)
+    } else {
+        Ok(vec![])
+    }
+}
+
+pub fn send_to(stream: &mut TcpStream, tag: TransferTag, b: &[u8]) -> Result<(), io::Error> {
+    stream.write_all(&[u8::from(tag)])?;
+    stream.write_all(b)?;
+    stream.write_all(&[b'\n'])?;
+    stream.flush()?;
+
+    Ok(())
 }

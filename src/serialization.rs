@@ -1,4 +1,5 @@
 use std::mem;
+use thiserror::Error;
 
 use crate::*;
 
@@ -20,6 +21,15 @@ pub struct ClientStatement {
     pub played_card: Carta,
 }
 
+#[derive(Debug, Error)]
+pub enum InvalidTransferGame {
+    #[error("not enough bytes")]
+    NotEnoughBytes,
+    #[error("invalid card")]
+    InvalidCarta(#[from] InvalidCard),
+    #[error("carta was empty at index {0}")]
+    CartaWasNone(usize),
+}
 impl TransferGame {
     pub fn serialize(&self) -> Vec<u8> {
         let mut out = vec![];
@@ -41,27 +51,77 @@ impl TransferGame {
 
         out
     }
+    pub fn deserialize(b: &[u8]) -> Result<Self, InvalidTransferGame> {
+        if b.len() < 5 {
+            return Err(InvalidTransferGame::NotEnoughBytes);
+        }
+        let carta_atot = Carta::deserialize(&b[0..2])?;
+        let table_card = Carta::deserialize(&b[2..4])?;
+
+        let hand_cards_amount = b[4];
+        if b.len() < 2 + 2 + 1 + hand_cards_amount as usize {
+            return Err(InvalidTransferGame::NotEnoughBytes);
+        }
+        let mut your_cards = vec![];
+        for i in 0..hand_cards_amount as usize / Carta::BYTES_LENGTH {
+            let j = 2 + 2 + 1 + i * 2;
+            match Carta::deserialize(&b[j..j + 2])? {
+                Some(c) => your_cards.push(c),
+                None => return Err(InvalidTransferGame::CartaWasNone(i)),
+            }
+        }
+
+        Ok(Self {
+            carta_atot,
+            table_card,
+            your_cards,
+        })
+    }
 }
 
+#[derive(Error, Debug)]
+pub enum InvalidClientStatement {
+    #[error("not enough bytes")]
+    NotEnoughBytes,
+    #[error("tag is not response")]
+    NotResponseTag,
+    #[error("invalid card")]
+    InvalidCard(#[from] InvalidCard),
+    #[error("missing card")]
+    MissingCard,
+    #[error("invalid tag")]
+    InvalidTag(#[from] InvalidTransferTag),
+}
 impl ClientStatement {
     pub fn serialize(&self) -> Vec<u8> {
         self.played_card.serialize().to_vec()
     }
-    pub fn deserialize(b: &[u8]) -> Option<Self> {
+    pub fn deserialize(b: &[u8]) -> Result<Self, InvalidClientStatement> {
         if b.is_empty() {
-            return None;
+            return Err(InvalidClientStatement::NotEnoughBytes);
         }
-        let tag = b[0];
-        if tag != RESPONSE_TAG {
-            return None;
+        if TransferTag::deserialize(&b[0..1])? != TransferTag::Response {
+            return Err(InvalidClientStatement::NotResponseTag);
         }
 
-        Carta::deserialize(&b[1..]).map(|c| ClientStatement { played_card: c })
+        match Carta::deserialize(&b[1..])? {
+            Some(c) => Ok(ClientStatement { played_card: c }),
+            None => Err(InvalidClientStatement::MissingCard),
+        }
     }
 }
 
+#[derive(Error, Debug)]
+#[error("invalid coll")]
+enum InvalidColl {
+    #[error("invalid amount of bytes: {0}")]
+    InvalidAmountOfBytes(usize),
+    #[error("unrecognized coll: {0}")]
+    Unrecognized(char),
+}
 impl Coll {
-    fn serialize(&self) -> [u8; 1] {
+    const BYTES_LENGTH: usize = 1;
+    fn serialize(&self) -> [u8; Self::BYTES_LENGTH] {
         match self {
             Coll::Monedes => [b'm'],
             Coll::Copes => [b'c'],
@@ -69,48 +129,131 @@ impl Coll {
             Coll::Garrots => [b'g'],
         }
     }
-    fn deserialize(b: &[u8]) -> Option<Self> {
+    fn deserialize(b: &[u8]) -> Result<Self, InvalidColl> {
         let [b] = b else {
-            return None;
+            return Err(InvalidColl::InvalidAmountOfBytes(b.len()));
         };
         match &[*b; 1] {
-            b"m" => Some(Coll::Monedes),
-            b"c" => Some(Coll::Copes),
-            b"e" => Some(Coll::Espases),
-            b"g" => Some(Coll::Garrots),
-            _ => None,
+            b"m" => Ok(Coll::Monedes),
+            b"c" => Ok(Coll::Copes),
+            b"e" => Ok(Coll::Espases),
+            b"g" => Ok(Coll::Garrots),
+            x => Err(InvalidColl::Unrecognized(x[0] as char)),
         }
     }
 }
+#[derive(Error, Debug)]
+#[error("invalid numero")]
+enum InvalidNumero {
+    #[error("invalid amount of bytes: {0}")]
+    InvalidAmountOfBytes(usize),
+    #[error("unrecognized numero: {0}")]
+    Unrecognized(u8),
+}
+
 impl Numero {
-    fn serialize(&self) -> [u8; 1] {
+    const BYTES_LENGTH: usize = 1;
+    fn serialize(&self) -> [u8; Self::BYTES_LENGTH] {
         [*self as u8]
     }
-    fn deserialize(b: &[u8]) -> Option<Self> {
+    fn deserialize(b: &[u8]) -> Result<Self, InvalidNumero> {
         let [b] = b else {
-            return None;
+            return Err(InvalidNumero::InvalidAmountOfBytes(b.len()));
         };
 
         if *b >= 10 {
-            None
+            Err(InvalidNumero::Unrecognized(*b))
         } else {
-            unsafe { Some(mem::transmute::<u8, Numero>(*b)) }
+            unsafe { Ok(mem::transmute::<u8, Numero>(*b)) }
         }
     }
 }
 
+#[derive(Error, Debug)]
+pub enum InvalidCard {
+    #[error("incorrect format")]
+    IncorrectFormat,
+    #[error("invalid coll")]
+    InvalidColl(#[from] InvalidColl),
+    #[error("invalid numero")]
+    InvalidNumero(#[from] InvalidNumero),
+}
+
 impl Carta {
-    fn serialize(&self) -> [u8; 2] {
+    const BYTES_LENGTH: usize = Numero::BYTES_LENGTH + Coll::BYTES_LENGTH;
+    fn serialize(&self) -> [u8; Self::BYTES_LENGTH] {
         let [c] = self.coll.serialize();
         let [v] = self.valor.serialize();
         [c, v]
     }
 
-    fn deserialize(b: &[u8]) -> Option<Self> {
+    fn deserialize(b: &[u8]) -> Result<Option<Self>, InvalidCard> {
         let [c_b, v_b] = b else {
-            return None;
+            return Err(InvalidCard::IncorrectFormat);
         };
-        Coll::deserialize(&[*c_b])
-            .and_then(|c| Numero::deserialize(&[*v_b]).map(|v| Carta { coll: c, valor: v }))
+
+        if *c_b == 0 && *v_b == 0 {
+            return Ok(None);
+        }
+        Ok(Some(Carta {
+            coll: Coll::deserialize(&[*c_b])?,
+            valor: Numero::deserialize(&[*v_b])?,
+        }))
+
+        //match (Coll::deserialize(&[*c_b]), Numero::deserialize(&[*v_b])) {
+        //    (Some(c), Some(v)) => Ok(Some(Carta { coll: c, valor: v })),
+        //    (None, _) => ,
+        //}
+        //Coll::deserialize(&[*c_b]) .and_then(|c| Numero::deserialize(&[*v_b]).map(|v| Carta { coll: c, valor: v }))
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TransferTag {
+    State,
+    Info,
+    Prompt,
+    Response,
+}
+
+impl From<TransferTag> for char {
+    fn from(value: TransferTag) -> Self {
+        u8::from(value) as char
+    }
+}
+impl From<TransferTag> for u8 {
+    fn from(value: TransferTag) -> Self {
+        match value {
+            TransferTag::State => b'S',
+            TransferTag::Info => b'I',
+            TransferTag::Prompt => b'P',
+            TransferTag::Response => b'R',
+        }
+    }
+}
+
+#[derive(Error, Debug)]
+pub enum InvalidTransferTag {
+    #[error("invalid amount of bytes: '{0}'")]
+    InvalidAmountOfBytes(usize),
+    #[error("unrecognized: '{0}'")]
+    Unrecognized(u8),
+}
+impl TransferTag {
+    const BYTES_LENGTH: usize = 1;
+    pub fn serialize(&self) -> [u8; Self::BYTES_LENGTH] {
+        [u8::from(*self)]
+    }
+    pub fn deserialize(b: &[u8]) -> Result<Self, InvalidTransferTag> {
+        if b.len() != 1 {
+            return Err(InvalidTransferTag::InvalidAmountOfBytes(b.len()));
+        }
+        match b[0] {
+            b'S' => Ok(Self::State),
+            b'I' => Ok(Self::Info),
+            b'P' => Ok(Self::Prompt),
+            b'R' => Ok(Self::Response),
+            _ => Err(InvalidTransferTag::Unrecognized(b[0])),
+        }
     }
 }

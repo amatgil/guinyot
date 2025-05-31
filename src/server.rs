@@ -1,27 +1,25 @@
 use guinyot::playing::Game;
 use guinyot::serialization::{ClientStatement, TransferGame};
 use guinyot::*;
-use std::io::{self, Read, Write};
+use std::io;
 use std::net::{TcpListener, TcpStream};
+
+use guinyot::serialization::TransferTag as Tag;
 
 fn main() -> Result<(), io::Error> {
     let listener = TcpListener::bind(format!("127.0.0.1:{DEFAULT_PORT}"))?;
     let mut streams = listener.incoming();
 
     let mut stream_a = streams.next().expect("A failed")?;
-    stream_a.write(&[INFO_TAG])?;
-    stream_a.write("Ets l'A (waiting for B)".as_bytes())?;
+    send_to(&mut stream_a, Tag::Info, "Ets l'A (waiting: B)".as_bytes())?;
     dbg!('A');
 
     let mut stream_b = streams.next().expect("B failed")?;
-    stream_b.write(&[INFO_TAG])?;
-    stream_b.write("Ets el B".as_bytes())?;
+    send_to(&mut stream_b, Tag::Info, "Ets el B".as_bytes())?;
     dbg!('B');
 
-    stream_a.write(&[INFO_TAG])?;
-    stream_a.write("Ets l'A (both connected)".as_bytes())?;
-    stream_b.write(&[INFO_TAG])?;
-    stream_b.write("Ets el B (both connected)".as_bytes())?;
+    send_to(&mut stream_a, Tag::Info, "Ets l'A (both up)".as_bytes())?;
+    send_to(&mut stream_b, Tag::Info, "Ets el B (both up)".as_bytes())?;
 
     let mut game = Game::new();
 
@@ -47,31 +45,20 @@ fn handle_turn(
     first: &mut TcpStream,
     second: &mut TcpStream,
 ) -> Result<(Carta, Carta), io::Error> {
-    let mut buf = vec![];
-
-    second.write(&[INFO_TAG])?;
-    second.write("L'altre jugador està triant ".as_bytes())?;
+    send_to(second, Tag::Info, "L'altre jugador està triant ".as_bytes())?;
     let first_answer = loop {
-        let transfer_first = TransferGame {
-            carta_atot: game.atot(),
-            your_cards: game.a_hand.clone(),
-            table_card: None,
-        };
-        first.write(&[STATE_TAG])?;
-        first.write(&transfer_first.serialize())?;
-
-        let first_answer = loop {
-            first.read(&mut buf)?;
-            if let Some(c) = ClientStatement::deserialize(&buf) {
-                break c;
+        let first_answer = get_answer_of(first, second, game, None)?;
+        match game.torn {
+            Torn::A => {
+                if game.a_hand.contains(&first_answer) {
+                    break first_answer;
+                }
             }
-        };
-        let hand = match game.torn {
-            Torn::A => &game.a_hand,
-            Torn::B => &game.b_hand,
-        };
-        if hand.contains(&first_answer.played_card) {
-            break first_answer.played_card;
+            Torn::B => {
+                if game.b_hand.contains(&first_answer) {
+                    break first_answer;
+                }
+            }
         }
     };
 
@@ -100,25 +87,25 @@ fn get_answer_of(
     game: &Game,
     previous_answer: Option<Carta>,
 ) -> Result<Carta, io::Error> {
-    let mut buf = vec![];
-
     let contents = TransferGame {
         carta_atot: game.atot(),
         your_cards: game.b_hand.clone(),
         table_card: previous_answer,
     };
+    dbg!(&contents);
 
-    to_play.write(&[STATE_TAG])?;
-    to_play.write(&contents.serialize())?;
+    send_to(to_play, Tag::State, &contents.serialize())?;
+    send_to(
+        not_playing,
+        Tag::Info,
+        "L'altre jugador està triant ".as_bytes(),
+    )?;
 
-    not_playing.write(&[INFO_TAG])?;
-    not_playing.write("L'altre jugador està triant ".as_bytes())?;
-
-    let second_answer = loop {
-        not_playing.read(&mut buf)?;
-        if let Some(c) = ClientStatement::deserialize(&buf) {
+    let answer = loop {
+        let msg = receive_from(not_playing)?;
+        if let Ok(c) = ClientStatement::deserialize(&msg) {
             break c;
         }
     };
-    Ok(second_answer.played_card)
+    Ok(answer.played_card)
 }
