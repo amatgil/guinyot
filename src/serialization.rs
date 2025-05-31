@@ -304,8 +304,7 @@ impl Display for TransferGame {
             .map(|c| c.to_string())
             .collect::<Vec<String>>()
             .join(", ");
-        let taula = self
-            .table_card
+        let taula = dbg!(self.table_card)
             .map(|c| c.to_string())
             .unwrap_or("</>".to_string());
         write!(f, "Atot: {}\nCartes: {}\nTaula: {}", atot, cartes, taula)

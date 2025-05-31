@@ -23,6 +23,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         let tag = &m[0..1];
         let rest = &m[1..];
+        dbg!(rest);
         match TransferTag::deserialize(tag) {
             Err(e) => println!("Error '{}', source: '{:?}", e, e.source()),
             Ok(TransferTag::Info) => println!("Info: {}", String::from_utf8_lossy(rest)),
