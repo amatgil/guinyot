@@ -1,4 +1,4 @@
-use std::mem;
+use std::{fmt::Display, mem};
 use thiserror::Error;
 
 use crate::*;
@@ -255,5 +255,59 @@ impl TransferTag {
             b'R' => Ok(Self::Response),
             _ => Err(InvalidTransferTag::Unrecognized(b[0])),
         }
+    }
+}
+
+impl Display for Coll {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // TODO: pick emoji
+        let c = match self {
+            Coll::Monedes => "Monedes",
+            Coll::Copes => "Copes",
+            Coll::Espases => "Espases",
+            Coll::Garrots => "Garrots",
+        };
+        write!(f, "{c}")
+    }
+}
+impl Display for Numero {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let n = match self {
+            Numero::As => "As",
+            Numero::Dos => "2",
+            Numero::Tres => "3",
+            Numero::Quatre => "4",
+            Numero::Cinc => "5",
+            Numero::Sis => "6",
+            Numero::Set => "7",
+            Numero::Sota => "Sota",
+            Numero::Cavall => "Cavall",
+            Numero::Rei => "Rei",
+        };
+        write!(f, "{n}")
+    }
+}
+impl Display for Carta {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} de {}", self.valor, self.coll)
+    }
+}
+impl Display for TransferGame {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let atot = self
+            .carta_atot
+            .map(|c| c.to_string())
+            .unwrap_or("</>".to_string());
+        let cartes: String = self
+            .your_cards
+            .iter()
+            .map(|c| c.to_string())
+            .collect::<Vec<String>>()
+            .join(", ");
+        let taula = self
+            .table_card
+            .map(|c| c.to_string())
+            .unwrap_or("</>".to_string());
+        write!(f, "Atot: {}\nCartes: {}\nTaula: {}", atot, cartes, taula)
     }
 }
