@@ -3,7 +3,7 @@ use guinyot::{
     *,
 };
 use std::error::Error;
-use std::{io::stdin, io::Read, net::TcpStream, process::exit};
+use std::{io::stdin, net::TcpStream, process::exit};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut stream = TcpStream::connect(format!("127.0.0.1:{DEFAULT_PORT}"))?;
@@ -15,7 +15,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     loop {
-        println!("\tWaiting...");
+        println!("Waiting...");
         let m = receive_from(&mut stream)?;
         if m.len() == 0 {
             println!("Got empty, exiting");
@@ -23,7 +23,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         let tag = &m[0..1];
         let rest = &m[1..];
-        dbg!(rest);
         match TransferTag::deserialize(tag) {
             Err(e) => println!("Error '{}', source: '{:?}", e, e.source()),
             Ok(TransferTag::Info) => println!("Info: {}", String::from_utf8_lossy(rest)),

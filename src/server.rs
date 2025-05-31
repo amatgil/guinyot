@@ -56,10 +56,17 @@ fn handle_turn(
 
     let first_answer = loop {
         let first_answer = dbg!(get_answer_of(first, second, game, first_ma.clone(), None)?);
-        if !first_ma.contains(&first_answer) {
+        if first_ma.contains(&first_answer) {
             break first_answer;
         } else {
-            eprintln!("(F) Card '{first_answer}' is not contained in that player's deck");
+            eprintln!(
+                "(F) Card '{first_answer}' is not contained in that player's deck ({})",
+                first_ma
+                    .iter()
+                    .map(|c| format!("'{c}'"))
+                    .collect::<Vec<String>>()
+                    .join(" ")
+            );
         }
     };
     dbg!("Time for P2");
@@ -72,7 +79,7 @@ fn handle_turn(
             second_ma.clone(),
             Some(first_answer)
         )?);
-        if !second_ma.contains(&second_answer) {
+        if second_ma.contains(&second_answer) {
             break second_answer;
         } else {
             eprintln!("(S) Card '{second_answer}' is not contained in that player's deck");
@@ -113,5 +120,6 @@ fn get_answer_of(
         send_to(to_play, Tag::State, &contents.serialize())?;
         send_to(to_play, Tag::Prompt, "Et toca:".as_bytes())?;
     };
+    dbg!(&answer);
     Ok(answer.played_card)
 }

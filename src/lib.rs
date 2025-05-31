@@ -107,13 +107,15 @@ fn shuffle<T>(mut x: Vec<T>) -> Vec<T> {
 
 // Communications area
 
+const END_OF_COMM: u8 = 255;
+
 /// Reads until newline
 pub fn receive_from(s: &mut TcpStream) -> Result<Vec<u8>, io::Error> {
     let mut reader = BufReader::new(s);
 
     let mut received: Vec<u8> = vec![];
-    let _n = reader.read_until(b'\n', &mut received)?;
-    if let Some(b'\n') = received.pop() {
+    let _n = reader.read_until(END_OF_COMM, &mut received)?;
+    if let Some(END_OF_COMM) = received.pop() {
         Ok(received)
     } else {
         Ok(vec![])
@@ -121,9 +123,10 @@ pub fn receive_from(s: &mut TcpStream) -> Result<Vec<u8>, io::Error> {
 }
 
 pub fn send_to(stream: &mut TcpStream, tag: TransferTag, b: &[u8]) -> Result<(), io::Error> {
+    //dbg!(tag, b);
     stream.write_all(&[u8::from(tag)])?;
     stream.write_all(b)?;
-    stream.write_all(&[b'\n'])?;
+    stream.write_all(&[END_OF_COMM])?;
     stream.flush()?;
 
     Ok(())

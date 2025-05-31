@@ -35,7 +35,7 @@ impl TransferGame {
         let mut out = vec![];
 
         let atot_bytes: [u8; 2] = self.carta_atot.map(|c| c.serialize()).unwrap_or([0; 2]);
-        let table_card_bytes: [u8; 2] = [0; 2];
+        let table_card_bytes: [u8; 2] = self.table_card.map(|c| c.serialize()).unwrap_or([0; 2]);
         let user_cards: Vec<u8> = {
             // Each card is [u8; 2]
             let mut v = vec![2 * self.your_cards.len() as u8];
@@ -113,7 +113,7 @@ impl ClientStatement {
 
 #[derive(Error, Debug)]
 #[error("invalid coll")]
-enum InvalidColl {
+pub enum InvalidColl {
     #[error("invalid amount of bytes: {0}")]
     InvalidAmountOfBytes(usize),
     #[error("unrecognized coll: {0}")]
@@ -144,7 +144,7 @@ impl Coll {
 }
 #[derive(Error, Debug)]
 #[error("invalid numero")]
-enum InvalidNumero {
+pub enum InvalidNumero {
     #[error("invalid amount of bytes: {0}")]
     InvalidAmountOfBytes(usize),
     #[error("unrecognized numero: {0}")]

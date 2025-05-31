@@ -79,7 +79,12 @@ impl Game {
 }
 
 fn first_wins_basa(first: Carta, second: Carta, atot: Coll) -> bool {
-    dbg!(true) // TODO: implement
+    match (first.coll, second.coll, atot) {
+        (f, s, _) if f == s => first.valor.value() > first.valor.value(), // Valor tiebreaker
+        (f, _, a) if f == a => true,                                      // first is atot
+        (_, s, a) if s == a => false,                                     // second is atot
+        _ => true,                                                        // first wins by default
+    }
 }
 
 impl Default for Game {
